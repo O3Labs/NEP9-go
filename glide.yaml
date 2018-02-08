@@ -1,0 +1,4 @@
+package: github.com/neoauth/neo-nep-9
+import:
+- package: github.com/stretchr/testify
+  version: ~1.2.1
