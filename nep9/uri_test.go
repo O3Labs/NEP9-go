@@ -1,9 +1,10 @@
 package nep9_test
 
 import (
+	"log"
 	"testing"
 
-	"github.com/neoauth/neo-nep-9/nep9"
+	"github.com/o3labs/NEP9-go/nep9"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,4 +42,18 @@ func TestURI(t *testing.T) {
 			assert.Nil(t, uri)
 		})
 	})
+}
+
+func TestParseNEP9SmartContract(t *testing.T) {
+	//if smart contract conforms the main(operation string, param args []Object)
+	//you could pare the URI with this
+	rawURI := "neo:ce575ae1bb6153330d20c560acb434dc5755241b?operation=transfer&params=AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y,AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y,0.5"
+	//rawURI := "neo:ce575ae1bb6153330d20c560acb434dc5755241b?operation=balanceOf"
+	uri, err := nep9.NewURI(rawURI)
+	if err != nil {
+		log.Printf("%v", err)
+		t.Fail()
+		return
+	}
+	log.Printf("%+v", uri.SmartContract)
 }
