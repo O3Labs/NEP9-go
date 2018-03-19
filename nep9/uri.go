@@ -13,6 +13,15 @@ type (
 		Amount     float64      `json:"amount,omitempty"`
 		AssetID    string       `json:"assetID,omitempty"`
 		Attributes []*Attribute `json:"attributes,omitempty"`
+
+		// if the URI contains the script hash this field will be filled
+		SmartContract *SmartContract `json:"smartContract"` //optional
+	}
+
+	SmartContract struct {
+		ScriptHash string                 `json:"scriptHash"`
+		Operation  string                 `json:"operation"`
+		Params     map[string]interface{} `json:"params"`
 	}
 )
 
@@ -45,6 +54,54 @@ func NewURI(rawURI string) (*URI, error) {
 		return nil, fmt.Errorf(
 			"Invalid URI scheme, expecting '%s' but got: '%s'", validScheme, parsedURI.Scheme,
 		)
+	}
+	//NEO address should be 34 characters
+	//Smart contract's script hash should be 40 characters
+
+	//simple check here
+	isNativeAssetTransfer := true
+	if len(parsedURI.Opaque) == 34 {
+		valid := ValidateNEOAddress(parsedURI.Opaque)
+		if valid == false {
+			return nil, fmt.Errorf("%v is invalid NEOAddress", parsedURI.Opaque)
+		}
+		isNativeAssetTransfer = true
+	} else {
+		valid := ValidateSmartContractScriptHash(parsedURI.Opaque)
+		if valid == false {
+			return nil, fmt.Errorf("%v is invalid smart contract script hash", parsedURI.Opaque)
+		}
+
+		isNativeAssetTransfer = false
+	}
+
+	//Smart Contract stuff
+	if isNativeAssetTransfer == false {
+
+		smartContract := SmartContract{
+			ScriptHash: parsedURI.Opaque,
+		}
+
+		operation := parsedURI.Query().Get("operation")
+		if operation == "" {
+			return nil, fmt.Errorf("Expected SmartContract operation")
+		}
+
+		smartContract.Operation = operation
+
+		//eventually we will need to parse the ABI and check the params here
+		smartContract.Params = map[string]interface{}{}
+		for k, v := range parsedURI.Query() {
+			//skip the operation part
+			if k == "operation" {
+				continue
+			}
+			smartContract.Params[k] = v
+		}
+
+		uri.SmartContract = &smartContract
+
+		return &uri, nil
 	}
 
 	uri.Address = parsedURI.Opaque
