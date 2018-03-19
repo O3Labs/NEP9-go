@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-	"strings"
 )
 
 type (
@@ -20,9 +19,9 @@ type (
 	}
 
 	SmartContract struct {
-		ScriptHash string        `json:"scriptHash"`
-		Operation  string        `json:"operation"`
-		Params     []interface{} `json:"params"`
+		ScriptHash string                 `json:"scriptHash"`
+		Operation  string                 `json:"operation"`
+		Params     map[string]interface{} `json:"params"`
 	}
 )
 
@@ -91,15 +90,13 @@ func NewURI(rawURI string) (*URI, error) {
 		smartContract.Operation = operation
 
 		//eventually we will need to parse the ABI and check the params here
-		paramsString := parsedURI.Query().Get("params")
-		if paramsString != "" {
-			params := strings.Split(paramsString, ",")
-			for _, param := range params {
-				v := strings.TrimSpace(param)
-				if v != "" {
-					smartContract.Params = append(smartContract.Params, param)
-				}
+		smartContract.Params = map[string]interface{}{}
+		for k, v := range parsedURI.Query() {
+			//skip the operation part
+			if k == "operation" {
+				continue
 			}
+			smartContract.Params[k] = v
 		}
 
 		uri.SmartContract = &smartContract

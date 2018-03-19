@@ -44,11 +44,20 @@ func TestURI(t *testing.T) {
 	})
 }
 
-func TestParseNEP9SmartContract(t *testing.T) {
-	//if smart contract conforms the main(operation string, param args []Object)
-	//you could pare the URI with this
-	rawURI := "neo:ce575ae1bb6153330d20c560acb434dc5755241b?operation=transfer&params=AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y,AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y,0.5"
+func TestParseNEP9SmartContractTransferNEP5(t *testing.T) {
+	rawURI := "neo:ce575ae1bb6153330d20c560acb434dc5755241b?operation=transfer&from=AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y&to=AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y&amount=0.5"
 	//rawURI := "neo:ce575ae1bb6153330d20c560acb434dc5755241b?operation=balanceOf"
+	uri, err := nep9.NewURI(rawURI)
+	if err != nil {
+		log.Printf("%v", err)
+		t.Fail()
+		return
+	}
+	log.Printf("%+v", uri.SmartContract)
+}
+
+func TestParseNEP9SmartContractInvocation(t *testing.T) {
+	rawURI := "neo:75b7a2153b7f4bea152a5ecf19f8855c11e74517?operation=useTokens&from=AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y&&amount=0.5"
 	uri, err := nep9.NewURI(rawURI)
 	if err != nil {
 		log.Printf("%v", err)
