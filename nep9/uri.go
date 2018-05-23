@@ -4,25 +4,16 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-	"strings"
 )
 
 type (
 	// URI is a Go representation of a NEP-9 parsed URI.
+	// Support unified native asset and NEP-5 token transfer
 	URI struct {
 		Address    string       `json:"address"`
 		Amount     float64      `json:"amount,omitempty"`
-		AssetID    string       `json:"assetID,omitempty"`
+		Asset      string       `json:"asset,omitempty"`
 		Attributes []*Attribute `json:"attributes,omitempty"`
-
-		// if the URI contains the script hash this field will be filled
-		SmartContract *SmartContract `json:"smartContract"` //optional
-	}
-
-	SmartContract struct {
-		ScriptHash string        `json:"scriptHash"`
-		Operation  string        `json:"operation"`
-		Params     []interface{} `json:"params"`
 	}
 )
 
@@ -31,14 +22,18 @@ const (
 )
 
 var (
-	validAssets = map[string]string{
+	validAssetAlias = map[string]string{
+		"neo": "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
+		"gas": "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7",
+	}
+	validAssetIDs = map[string]string{
 		"c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b": "neo",
 		"602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7": "gas",
 	}
 
 	validURIKeys = map[string]string{
-		"assetID": "assetID",
-		"amount":  "amount",
+		"asset":  "asset",
+		"amount": "amount",
 	}
 )
 
@@ -57,65 +52,36 @@ func NewURI(rawURI string) (*URI, error) {
 		)
 	}
 	//NEO address should be 34 characters
-	//Smart contract's script hash should be 40 characters
-
-	//simple check here
-	isNativeAssetTransfer := true
-	if len(parsedURI.Opaque) == 34 {
-		valid := ValidateNEOAddress(parsedURI.Opaque)
-		if valid == false {
-			return nil, fmt.Errorf("%v is invalid NEOAddress", parsedURI.Opaque)
-		}
-		isNativeAssetTransfer = true
-	} else {
-		valid := ValidateSmartContractScriptHash(parsedURI.Opaque)
-		if valid == false {
-			return nil, fmt.Errorf("%v is invalid smart contract script hash", parsedURI.Opaque)
-		}
-
-		isNativeAssetTransfer = false
+	if len(parsedURI.Opaque) != 34 {
+		return nil, fmt.Errorf("%v is invalid NEOAddress", parsedURI.Opaque)
 	}
 
-	//Smart Contract stuff
-	if isNativeAssetTransfer == false {
-
-		smartContract := SmartContract{
-			ScriptHash: parsedURI.Opaque,
-		}
-
-		operation := parsedURI.Query().Get("operation")
-		if operation == "" {
-			return nil, fmt.Errorf("Expected SmartContract operation")
-		}
-
-		smartContract.Operation = operation
-
-		//eventually we will need to parse the ABI and check the params here
-		paramsString := parsedURI.Query().Get("params")
-		if paramsString != "" {
-			params := strings.Split(paramsString, ",")
-			for _, param := range params {
-				v := strings.TrimSpace(param)
-				if v != "" {
-					smartContract.Params = append(smartContract.Params, param)
-				}
-			}
-		}
-
-		uri.SmartContract = &smartContract
-
-		return &uri, nil
+	//validate using base58 again
+	valid := ValidateNEOAddress(parsedURI.Opaque)
+	if valid == false {
+		return nil, fmt.Errorf("%v is invalid NEOAddress", parsedURI.Opaque)
 	}
 
 	uri.Address = parsedURI.Opaque
 
-	assetID := parsedURI.Query().Get("assetID")
-	if assetID != "" {
-		if validAssets[assetID] == "" {
-			return nil, fmt.Errorf("Invalid AssetID, got: '%s'", assetID)
-		}
+	//check both assetID and alias(neo|gas)
+	assetString := parsedURI.Query().Get("asset")
 
-		uri.AssetID = assetID
+	//if the asset in query string is not empty
+	if assetString != "" {
+		//check for both assetID and asset alias
+		assetID := validAssetAlias[assetString]
+		assetName := validAssetIDs[assetString]
+		//if both are empty we then try to validate the nep5 script hash again
+		if assetID == "" && assetName == "" {
+			validScriptHash := ValidateSmartContractScriptHash(assetString)
+			//if it's invalid then return here
+			if validScriptHash == false {
+				return nil, fmt.Errorf("Invalid asset, got: '%s'", assetString)
+			}
+		}
+		//if it gets here meaning that the asset query string is valid
+		uri.Asset = assetString
 	}
 
 	stringAmount := parsedURI.Query().Get("amount")
