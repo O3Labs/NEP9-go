@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 type (
@@ -70,7 +71,7 @@ func NewURI(rawURI string) (*URI, error) {
 	//if the asset in query string is not empty
 	if assetString != "" {
 		//check for both assetID and asset alias
-		assetID := validAssetAlias[assetString]
+		assetID := validAssetAlias[strings.ToLower(assetString)]
 		assetName := validAssetIDs[assetString]
 		//if both are empty we then try to validate the nep5 script hash again
 		if assetID == "" && assetName == "" {
